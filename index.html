@@ -1,322 +1,1027 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>Ransomware: Anatomy of an Attack</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-  :root{
-    --bg: #0B0E14;
-    --panel: #131822;
-    --panel-2: #171D29;
-    --line: #262E3D;
-    --text: #C9D2E0;
-    --text-dim: #7C8798;
-    --amber: #F0A202;
-    --red: #E5484D;
-    --teal: #2FD4C4;
-  }
-  *{box-sizing:border-box; margin:0; padding:0;}
-  html,body{background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; overflow-x:hidden;}
-  .wrap{max-width:920px; margin:0 auto; padding:0 0 40px 0; position:relative;}
+  <meta charset="UTF-8">
+  <title>Ransomware: Anatomy of an Attack</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0B0E14;
+      --panel: #131822;
+      --panel-2: #171D29;
+      --line: #262E3D;
+      --text: #C9D2E0;
+      --text-dim: #7C8798;
+      --amber: #F0A202;
+      --red: #E5484D;
+      --teal: #2FD4C4;
+    }
 
-  /* faint scanline / grid texture */
-  body::before{
-    content:"";
-    position:fixed; inset:0; pointer-events:none; z-index:0;
-    background-image:
-      repeating-linear-gradient(0deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px, transparent 1px, transparent 3px);
-  }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
 
-  .mono{font-family:'JetBrains Mono', monospace;}
-  .display{font-family:'Archivo Black', sans-serif; text-transform:uppercase;}
+    html,
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+    }
 
-  /* ===== HEADER / RANSOM NOTE ===== */
-  header{
-    position:relative; padding:64px 40px 48px 40px; border-bottom:1px solid var(--line);
-    background:
-      radial-gradient(ellipse at top left, rgba(229,72,77,0.18), transparent 55%),
-      radial-gradient(ellipse at bottom right, rgba(47,212,196,0.10), transparent 50%);
-  }
-  .tag{
-    display:inline-flex; align-items:center; gap:8px;
-    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:2px;
-    color:var(--red); border:1px solid rgba(229,72,77,0.4); background:rgba(229,72,77,0.08);
-    padding:6px 12px; border-radius:3px; margin-bottom:22px;
-  }
-  .tag .dot{width:7px; height:7px; border-radius:50%; background:var(--red); animation:pulse 1.6s infinite;}
-  @keyframes pulse{0%,100%{opacity:1} 50%{opacity:0.25}}
-  h1.display{
-    font-size:52px; line-height:1.02; letter-spacing:-0.5px; color:#F2F5FA;
-    max-width:680px;
-  }
-  h1.display span{color:var(--amber);}
-  .subhead{margin-top:18px; max-width:560px; color:var(--text-dim); font-size:16px; line-height:1.6;}
-  .note-box{
-    margin-top:30px; border:1px dashed rgba(240,162,2,0.45); background:var(--panel);
-    padding:16px 20px; border-radius:4px; font-family:'JetBrains Mono',monospace; font-size:13px;
-    color:var(--amber); max-width:600px; line-height:1.7;
-  }
-  .note-box b{color:#F2F5FA;}
+    .wrap {
+      max-width: 920px;
+      margin: 0 auto;
+      padding: 0 0 40px 0;
+      position: relative;
+    }
 
-  /* ===== SECTION SHELL ===== */
-  section{padding:52px 40px; border-bottom:1px solid var(--line); position:relative; z-index:1;}
-  .kicker{
-    font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:3px; color:var(--teal);
-    display:flex; align-items:center; gap:10px; margin-bottom:14px;
-  }
-  .kicker::after{content:""; flex:1; height:1px; background:var(--line);}
-  h2.display{font-size:28px; color:#F2F5FA; margin-bottom:18px; letter-spacing:-0.3px;}
-  p.body-text{color:var(--text); font-size:15.5px; line-height:1.75; max-width:720px;}
-  p.body-text + p.body-text{margin-top:14px;}
+    /* faint scanline / grid texture */
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.015) 0px, rgba(255, 255, 255, 0.015) 1px, transparent 1px, transparent 3px);
+    }
 
-  /* ===== DEFINITION ===== */
-  .def-grid{display:grid; grid-template-columns:1.3fr 1fr; gap:32px; margin-top:26px;}
-  .def-card{
-    background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:22px;
-  }
-  .def-card h3{font-family:'JetBrains Mono',monospace; font-size:12px; letter-spacing:2px; color:var(--text-dim); margin-bottom:10px;}
-  .def-card .stat{font-family:'Archivo Black'; font-size:30px; color:var(--amber); margin-bottom:4px;}
-  .def-card .stat-label{font-size:12.5px; color:var(--text-dim); line-height:1.5;}
-  .stat-stack{display:flex; flex-direction:column; gap:18px;}
+    .mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
 
-  /* ===== LIFECYCLE ===== */
-  .lifecycle{margin-top:34px; display:flex; flex-direction:column; gap:0;}
-  .stage{
-    display:grid; grid-template-columns:64px 1fr; gap:22px; position:relative; padding-bottom:34px;
-  }
-  .stage:last-child{padding-bottom:0;}
-  .stage-rail{position:relative; display:flex; flex-direction:column; align-items:center;}
-  .stage-num{
-    width:44px; height:44px; border-radius:50%; border:2px solid var(--stagecolor,var(--teal));
-    display:flex; align-items:center; justify-content:center; background:var(--panel);
-    color:var(--stagecolor,var(--teal)); font-family:'JetBrains Mono'; font-weight:700; font-size:15px;
-    flex-shrink:0; z-index:2;
-  }
-  .stage-line{position:absolute; top:44px; bottom:-34px; width:2px; background:linear-gradient(var(--line), var(--line));}
-  .stage:last-child .stage-line{display:none;}
-  .stage-body{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px 22px;}
-  .stage-body h4{color:#F2F5FA; font-size:16.5px; margin-bottom:8px; display:flex; align-items:center; gap:10px;}
-  .stage-body h4 .lockicon{width:18px; height:18px;}
-  .stage-body p{color:var(--text-dim); font-size:14.5px; line-height:1.65;}
-  .stage-body .example{
-    margin-top:10px; font-family:'JetBrains Mono'; font-size:12.5px; color:var(--stagecolor,var(--teal));
-    background:rgba(255,255,255,0.03); border-left:2px solid var(--stagecolor,var(--teal)); padding:8px 12px; border-radius:0 4px 4px 0;
-  }
+    .display {
+      font-family: 'Archivo Black', sans-serif;
+      text-transform: uppercase;
+    }
 
-  /* ===== CASE STUDY ===== */
-  .case-header{display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:6px;}
-  .case-title{font-size:26px; color:#F2F5FA; font-family:'Archivo Black';}
-  .case-date{font-family:'JetBrains Mono'; font-size:12.5px; color:var(--red); border:1px solid rgba(229,72,77,0.4); padding:4px 10px; border-radius:3px;}
-  .stat-row{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:28px 0;}
-  .stat-tile{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px 14px; text-align:left;}
-  .stat-tile .num{font-family:'Archivo Black'; font-size:24px; color:var(--amber); line-height:1.1;}
-  .stat-tile .lbl{font-size:11.5px; color:var(--text-dim); margin-top:6px; line-height:1.4;}
-  .case-timeline{
-    margin-top:24px; background:var(--panel-2); border:1px solid var(--line); border-radius:8px; padding:20px 24px;
-  }
-  .case-timeline .t-row{display:grid; grid-template-columns:96px 1fr; gap:16px; padding:10px 0; border-bottom:1px solid var(--line); font-size:14px;}
-  .case-timeline .t-row:last-child{border-bottom:none;}
-  .case-timeline .t-time{font-family:'JetBrains Mono'; color:var(--teal); font-size:12.5px;}
-  .case-timeline .t-desc{color:var(--text);}
-  .impact-tags{display:flex; flex-wrap:wrap; gap:8px; margin-top:18px;}
-  .impact-tags span{font-family:'JetBrains Mono'; font-size:11.5px; background:rgba(240,162,2,0.08); color:var(--amber); border:1px solid rgba(240,162,2,0.3); padding:5px 10px; border-radius:3px;}
+    /* ===== HEADER / RANSOM NOTE ===== */
+    header {
+      position: relative;
+      padding: 64px 40px 48px 40px;
+      border-bottom: 1px solid var(--line);
+      background:
+        radial-gradient(ellipse at top left, rgba(229, 72, 77, 0.18), transparent 55%),
+        radial-gradient(ellipse at bottom right, rgba(47, 212, 196, 0.10), transparent 50%);
+    }
 
-  /* ===== PREVENTION ===== */
-  .prevent-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:16px; margin-top:26px;}
-  .prevent-card{background:var(--panel); border:1px solid var(--line); border-left:3px solid var(--teal); border-radius:6px; padding:18px 20px;}
-  .prevent-card h4{font-size:15px; color:#F2F5FA; margin-bottom:6px; display:flex; align-items:center; gap:8px;}
-  .prevent-card h4 .chk{color:var(--teal); font-family:'JetBrains Mono';}
-  .prevent-card p{font-size:13.5px; color:var(--text-dim); line-height:1.6;}
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--red);
+      border: 1px solid rgba(229, 72, 77, 0.4);
+      background: rgba(229, 72, 77, 0.08);
+      padding: 6px 12px;
+      border-radius: 3px;
+      margin-bottom: 22px;
+    }
 
-  /* ===== REFERENCES ===== */
-  .refs{font-size:13px; color:var(--text-dim); line-height:2;}
-  .refs .n{color:var(--teal); font-family:'JetBrains Mono'; margin-right:8px;}
+    .tag .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--red);
+      animation: pulse 1.6s infinite;
+    }
 
-  footer{padding:34px 40px; text-align:center; color:var(--text-dim); font-size:12.5px; font-family:'JetBrains Mono';}
-  footer b{color:var(--amber);}
+    @keyframes pulse {
 
-  @media (max-width:640px){
-    h1.display{font-size:36px;}
-    .def-grid{grid-template-columns:1fr;}
-    .stat-row{grid-template-columns:repeat(2,1fr);}
-    .prevent-grid{grid-template-columns:1fr;}
-    header, section{padding-left:22px; padding-right:22px;}
-  }
-</style>
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.25
+      }
+    }
+
+    h1.display {
+      font-size: 52px;
+      line-height: 1.02;
+      letter-spacing: -0.5px;
+      color: #F2F5FA;
+      max-width: 680px;
+    }
+
+    h1.display span {
+      color: var(--amber);
+    }
+
+    .subhead {
+      margin-top: 18px;
+      max-width: 560px;
+      color: var(--text-dim);
+      font-size: 16px;
+      line-height: 1.6;
+    }
+
+    .note-box {
+      margin-top: 30px;
+      border: 1px dashed rgba(240, 162, 2, 0.45);
+      background: var(--panel);
+      padding: 16px 20px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: var(--amber);
+      max-width: 600px;
+      line-height: 1.7;
+    }
+
+    .note-box b {
+      color: #F2F5FA;
+    }
+
+    /* ===== SECTION SHELL ===== */
+    section {
+      padding: 52px 40px;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+      z-index: 1;
+    }
+
+    .kicker {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 3px;
+      color: var(--teal);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .kicker::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--line);
+    }
+
+    h2.display {
+      font-size: 28px;
+      color: #F2F5FA;
+      margin-bottom: 18px;
+      letter-spacing: -0.3px;
+    }
+
+    p.body-text {
+      color: var(--text);
+      font-size: 15.5px;
+      line-height: 1.75;
+      max-width: 720px;
+    }
+
+    p.body-text+p.body-text {
+      margin-top: 14px;
+    }
+
+    /* ===== DEFINITION ===== */
+    .def-grid {
+      display: grid;
+      grid-template-columns: 1.3fr 1fr;
+      gap: 32px;
+      margin-top: 26px;
+    }
+
+    .def-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+    }
+
+    .def-card h3 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 2px;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
+
+    .def-card .stat {
+      font-family: 'Archivo Black';
+      font-size: 30px;
+      color: var(--amber);
+      margin-bottom: 4px;
+    }
+
+    .def-card .stat-label {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      line-height: 1.5;
+    }
+
+    .stat-stack {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* ===== LIFECYCLE ===== */
+    .lifecycle {
+      margin-top: 34px;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .stage {
+      display: grid;
+      grid-template-columns: 64px 1fr;
+      gap: 22px;
+      position: relative;
+      padding-bottom: 34px;
+    }
+
+    .stage:last-child {
+      padding-bottom: 0;
+    }
+
+    .stage-rail {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stage-num {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid var(--stagecolor, var(--teal));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--panel);
+      color: var(--stagecolor, var(--teal));
+      font-family: 'JetBrains Mono';
+      font-weight: 700;
+      font-size: 15px;
+      flex-shrink: 0;
+      z-index: 2;
+    }
+
+    .stage-line {
+      position: absolute;
+      top: 44px;
+      bottom: -34px;
+      width: 2px;
+      background: linear-gradient(var(--line), var(--line));
+    }
+
+    .stage:last-child .stage-line {
+      display: none;
+    }
+
+    .stage-body {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px 22px;
+    }
+
+    .stage-body h4 {
+      color: #F2F5FA;
+      font-size: 16.5px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .stage-body h4 .lockicon {
+      width: 18px;
+      height: 18px;
+    }
+
+    .stage-body p {
+      color: var(--text-dim);
+      font-size: 14.5px;
+      line-height: 1.65;
+    }
+
+    .stage-body .example {
+      margin-top: 10px;
+      font-family: 'JetBrains Mono';
+      font-size: 12.5px;
+      color: var(--stagecolor, var(--teal));
+      background: rgba(255, 255, 255, 0.03);
+      border-left: 2px solid var(--stagecolor, var(--teal));
+      padding: 8px 12px;
+      border-radius: 0 4px 4px 0;
+    }
+
+    /* ===== CASE STUDY ===== */
+    .case-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .case-title {
+      font-size: 26px;
+      color: #F2F5FA;
+      font-family: 'Archivo Black';
+    }
+
+    .case-date {
+      font-family: 'JetBrains Mono';
+      font-size: 12.5px;
+      color: var(--red);
+      border: 1px solid rgba(229, 72, 77, 0.4);
+      padding: 4px 10px;
+      border-radius: 3px;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin: 28px 0;
+    }
+
+    .stat-tile {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px 14px;
+      text-align: left;
+    }
+
+    .stat-tile .num {
+      font-family: 'Archivo Black';
+      font-size: 24px;
+      color: var(--amber);
+      line-height: 1.1;
+    }
+
+    .stat-tile .lbl {
+      font-size: 11.5px;
+      color: var(--text-dim);
+      margin-top: 6px;
+      line-height: 1.4;
+    }
+
+    .case-timeline {
+      margin-top: 24px;
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px 24px;
+    }
+
+    .case-timeline .t-row {
+      display: grid;
+      grid-template-columns: 96px 1fr;
+      gap: 16px;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+
+    .case-timeline .t-row:last-child {
+      border-bottom: none;
+    }
+
+    .case-timeline .t-time {
+      font-family: 'JetBrains Mono';
+      color: var(--teal);
+      font-size: 12.5px;
+    }
+
+    .case-timeline .t-desc {
+      color: var(--text);
+    }
+
+    .impact-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 18px;
+    }
+
+    .impact-tags span {
+      font-family: 'JetBrains Mono';
+      font-size: 11.5px;
+      background: rgba(240, 162, 2, 0.08);
+      color: var(--amber);
+      border: 1px solid rgba(240, 162, 2, 0.3);
+      padding: 5px 10px;
+      border-radius: 3px;
+    }
+
+    /* ===== PREVENTION ===== */
+    .prevent-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-top: 26px;
+    }
+
+    .prevent-card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-left: 3px solid var(--teal);
+      border-radius: 6px;
+      padding: 18px 20px;
+    }
+
+    .prevent-card h4 {
+      font-size: 15px;
+      color: #F2F5FA;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .prevent-card h4 .chk {
+      color: var(--teal);
+      font-family: 'JetBrains Mono';
+    }
+
+    .prevent-card p {
+      font-size: 13.5px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    /* ===== REFERENCES ===== */
+    .refs {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 2;
+    }
+
+    .refs .n {
+      color: var(--teal);
+      font-family: 'JetBrains Mono';
+      margin-right: 8px;
+    }
+
+    /* ===== BY THE NUMBERS ===== */
+    .num-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 26px;
+    }
+
+    .num-tile {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px 18px;
+      border-top: 3px solid var(--stagecolor, var(--amber));
+    }
+
+    .num-tile .num {
+      font-family: 'Archivo Black';
+      font-size: 28px;
+      color: #F2F5FA;
+      line-height: 1.05;
+    }
+
+    .num-tile .lbl {
+      font-size: 12.5px;
+      color: var(--text-dim);
+      margin-top: 8px;
+      line-height: 1.55;
+    }
+
+    .num-tile .src {
+      font-family: 'JetBrains Mono';
+      font-size: 10.5px;
+      color: var(--stagecolor, var(--amber));
+      margin-top: 8px;
+    }
+
+    @media (max-width:640px) {
+      .num-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    /* ===== NOTABLE ATTACKS STRIP ===== */
+    .strip {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 28px;
+    }
+
+    .strip-card {
+      background: var(--panel-2);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 18px 20px;
+    }
+
+    .strip-card .yr {
+      font-family: 'JetBrains Mono';
+      font-size: 11.5px;
+      color: var(--red);
+    }
+
+    .strip-card h5 {
+      font-size: 15px;
+      color: #F2F5FA;
+      margin: 6px 0 8px 0;
+    }
+
+    .strip-card p {
+      font-size: 13px;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    @media (max-width:640px) {
+      .strip {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    footer {
+      padding: 34px 40px;
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 12.5px;
+      font-family: 'JetBrains Mono';
+    }
+
+    footer b {
+      color: var(--amber);
+    }
+
+    @media (max-width:640px) {
+      h1.display {
+        font-size: 36px;
+      }
+
+      .def-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .stat-row {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .prevent-grid {
+        grid-template-columns: 1fr;
+      }
+
+      header,
+      section {
+        padding-left: 22px;
+        padding-right: 22px;
+      }
+    }
+  </style>
 </head>
+
 <body>
-<div class="wrap">
+  <div class="wrap">
 
-  <header>
-    <div class="tag"><span class="dot"></span>THREAT BRIEFING · AWARENESS SERIES</div>
-    <h1 class="display">Your Files Are<br>Encrypted. <span>Now What?</span></h1>
-    <p class="subhead">A field guide to ransomware — how it takes a network hostage, how WannaCry proved it could happen to anyone, and how to make sure it doesn't happen to you.</p>
-    <div class="note-box">
-      <b>root@victim-pc:~$</b> all_files.locked<br>
-      &gt; Your personal files are encrypted.<br>
-      &gt; Send <b>0.1785 BTC</b> to recover access.<br>
-      &gt; Timer: <b>03:00:00:00</b> remaining...
-    </div>
-  </header>
-
-  <!-- DEFINITION -->
-  <section id="definition">
-    <div class="kicker">01 · DEFINITION</div>
-    <h2 class="display">What Is Ransomware?</h2>
-    <p class="body-text"><b style="color:#F2F5FA">Ransomware</b> is a type of malicious software that blocks access to a victim's data or entire system — usually by encrypting files — and demands a ransom payment, typically in cryptocurrency, in exchange for the decryption key. It is a form of digital extortion: the attacker doesn't need to steal your data to profit, only to take it hostage.</p>
-    <p class="body-text">Modern ransomware often adds a second lever called <b style="color:#F2F5FA">double extortion</b> — attackers exfiltrate sensitive data before encrypting it, then threaten to leak it publicly if the ransom isn't paid, even if backups let the victim recover without paying.</p>
-
-    <div class="def-grid">
-      <div class="def-card">
-        <h3>WHO IT TARGETS</h3>
-        <p style="font-size:14px; color:var(--text-dim); line-height:1.7;">Hospitals, schools, city governments, manufacturers, and individual users alike — any environment where downtime is costly enough that paying feels like the "cheaper" option.</p>
+    <header>
+      <div class="tag"><span class="dot"></span>THREAT BRIEFING · AWARENESS SERIES</div>
+      <h1 class="display">Your Files Are<br>Encrypted. <span>Now What?</span></h1>
+      <p class="subhead">A field guide to ransomware — how it takes a network hostage, how WannaCry proved it could
+        happen to anyone, and how to make sure it doesn't happen to you.</p>
+      <div class="note-box">
+        <b>root@victim-pc:~$</b> all_files.locked<br>
+        &gt; Your personal files are encrypted.<br>
+        &gt; Send <b>0.1785 BTC</b> to recover access.<br>
+        &gt; Timer: <b>03:00:00:00</b> remaining...
       </div>
-      <div class="stat-stack">
+    </header>
+
+    <!-- DEFINITION -->
+    <section id="definition">
+      <div class="kicker">01 · DEFINITION</div>
+      <h2 class="display">What Is Ransomware?</h2>
+      <p class="body-text"><b style="color:#F2F5FA">Ransomware</b> is a type of malicious software that blocks access to
+        a victim's data or entire system — usually by encrypting files — and demands a ransom payment, typically in
+        cryptocurrency, in exchange for the decryption key. It is a form of digital extortion: the attacker doesn't need
+        to steal your data to profit, only to take it hostage.</p>
+      <p class="body-text">Modern ransomware often adds a second lever called <b style="color:#F2F5FA">double
+          extortion</b> — attackers exfiltrate sensitive data before encrypting it, then threaten to leak it publicly if
+        the ransom isn't paid, even if backups let the victim recover without paying.</p>
+
+      <div class="def-grid">
         <div class="def-card">
-          <div class="stat">~$300–600</div>
-          <div class="stat-label">typical ransom demand per device in early ransomware campaigns like WannaCry, paid in Bitcoin</div>
+          <h3>WHO IT TARGETS</h3>
+          <p style="font-size:14px; color:var(--text-dim); line-height:1.7;">Hospitals, schools, city governments,
+            manufacturers, and individual users alike — any environment where downtime is costly enough that paying
+            feels like the "cheaper" option.</p>
         </div>
-        <div class="def-card">
-          <div class="stat">Minutes</div>
-          <div class="stat-label">how quickly worm-based ransomware can spread across an unpatched network once inside</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- LIFECYCLE -->
-  <section id="lifecycle">
-    <div class="kicker">02 · HOW IT WORKS</div>
-    <h2 class="display">The Ransomware Attack Lifecycle</h2>
-    <p class="body-text">Ransomware doesn't strike in one step — it moves through a predictable chain of stages. Understanding the chain is what makes defense possible: breaking it at any single link stops the attack.</p>
-
-    <div class="lifecycle">
-
-      <div class="stage" style="--stagecolor:#E5484D">
-        <div class="stage-rail"><div class="stage-num">1</div><div class="stage-line"></div></div>
-        <div class="stage-body">
-          <h4>Delivery &amp; Initial Access</h4>
-          <p>The attacker gets a foothold — most often through a phishing email with a malicious attachment or link, a compromised remote-desktop (RDP) login, or an unpatched, internet-facing vulnerability.</p>
-          <div class="example">Example: WannaCry's initial variant spread via a malicious email attachment; later variants exploited an unpatched Windows network vulnerability directly, with no email needed.</div>
+        <div class="stat-stack">
+          <div class="def-card">
+            <div class="stat">~$300–600</div>
+            <div class="stat-label">typical ransom demand per device in early ransomware campaigns like WannaCry, paid
+              in Bitcoin</div>
+          </div>
+          <div class="def-card">
+            <div class="stat">Minutes</div>
+            <div class="stat-label">how quickly worm-based ransomware can spread across an unpatched network once inside
+            </div>
+          </div>
         </div>
       </div>
+    </section>
 
-      <div class="stage" style="--stagecolor:#F0A202">
-        <div class="stage-rail"><div class="stage-num">2</div><div class="stage-line"></div></div>
-        <div class="stage-body">
-          <h4>Execution &amp; Exploitation</h4>
-          <p>Once inside, the malware exploits a software or protocol vulnerability to run code and gain deeper system access, often escalating privileges to move beyond a single machine.</p>
-          <div class="example">Example: WannaCry exploited "EternalBlue," a flaw in Windows' SMB file-sharing protocol that Microsoft had already patched two months earlier — but many systems hadn't installed it.</div>
+    <!-- BY THE NUMBERS -->
+    <section id="numbers">
+      <div class="kicker">02 · RANSOMWARE BY THE NUMBERS (2025)</div>
+      <h2 class="display">The Scale of the Problem</h2>
+      <p class="body-text">WannaCry looked like an outlier in 2017. Today, the numbers show ransomware has become a
+        routine, industrialized business.</p>
+      <div class="num-grid">
+        <div class="num-tile" style="--stagecolor:#E5484D">
+          <div class="num">44%</div>
+          <div class="lbl">of all data breaches in 2025 involved ransomware — up sharply from the year before</div>
+          <div class="src">Verizon 2025 Data Breach Investigations Report</div>
+        </div>
+        <div class="num-tile" style="--stagecolor:#F0A202">
+          <div class="num">88%</div>
+          <div class="lbl">of breaches at small and midsize businesses involved ransomware, vs. 39% at large
+            organizations</div>
+          <div class="src">Verizon 2025 DBIR</div>
+        </div>
+        <div class="num-tile" style="--stagecolor:#2FD4C4">
+          <div class="num">$1M</div>
+          <div class="lbl">average ransom payment in 2025 — actually down 50% from $2M in 2024, as more victims refuse
+            to pay</div>
+          <div class="src">Sophos, State of Ransomware 2025</div>
+        </div>
+        <div class="num-tile" style="--stagecolor:#2FD4C4">
+          <div class="num">63%</div>
+          <div class="lbl">of ransomware victims refused to pay in 2025, up from 59% the year before</div>
+          <div class="src">Sophos / Fortinet, 2025 ransomware research</div>
+        </div>
+        <div class="num-tile" style="--stagecolor:#F0A202">
+          <div class="num">41%</div>
+          <div class="lbl">of ransomware attacks still begin with a phishing email — the single most common entry point
+          </div>
+          <div class="src">Industry ransomware research, 2025</div>
+        </div>
+        <div class="num-tile" style="--stagecolor:#E5484D">
+          <div class="num">80%+</div>
+          <div class="lbl">of ransomware incidents now involve "double extortion" — data theft plus encryption</div>
+          <div class="src">Industry ransomware research, 2025</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- LIFECYCLE -->
+    <section id="lifecycle">
+      <div class="kicker">03 · HOW IT WORKS</div>
+      <h2 class="display">The Ransomware Attack Lifecycle</h2>
+      <p class="body-text">Ransomware doesn't strike in one step — it moves through a predictable chain of stages.
+        Understanding the chain is what makes defense possible: breaking it at any single link stops the attack.</p>
+
+      <div class="lifecycle">
+
+        <div class="stage" style="--stagecolor:#E5484D">
+          <div class="stage-rail">
+            <div class="stage-num">1</div>
+            <div class="stage-line"></div>
+          </div>
+          <div class="stage-body">
+            <h4>Delivery &amp; Initial Access</h4>
+            <p>The attacker gets a foothold — most often through a phishing email with a malicious attachment or link, a
+              compromised remote-desktop (RDP) login, or an unpatched, internet-facing vulnerability.</p>
+            <div class="example">Example: WannaCry's initial variant spread via a malicious email attachment; later
+              variants exploited an unpatched Windows network vulnerability directly, with no email needed.</div>
+          </div>
+        </div>
+
+        <div class="stage" style="--stagecolor:#F0A202">
+          <div class="stage-rail">
+            <div class="stage-num">2</div>
+            <div class="stage-line"></div>
+          </div>
+          <div class="stage-body">
+            <h4>Execution &amp; Exploitation</h4>
+            <p>Once inside, the malware exploits a software or protocol vulnerability to run code and gain deeper system
+              access, often escalating privileges to move beyond a single machine.</p>
+            <div class="example">Example: WannaCry exploited "EternalBlue," a flaw in Windows' SMB file-sharing protocol
+              that Microsoft had already patched two months earlier — but many systems hadn't installed it.</div>
+          </div>
+        </div>
+
+        <div class="stage" style="--stagecolor:#F0A202">
+          <div class="stage-rail">
+            <div class="stage-num">3</div>
+            <div class="stage-line"></div>
+          </div>
+          <div class="stage-body">
+            <h4>Lateral Movement &amp; Propagation</h4>
+            <p>The malware spreads across the network — self-propagating "worm" ransomware can jump machine to machine
+              with no user interaction at all, while other strains rely on stolen credentials.</p>
+            <div class="example">Example: WannaCry behaved as a self-replicating worm, scanning for other vulnerable
+              machines on the same network and internet-wide, infecting over 200,000 systems in roughly 24 hours.</div>
+          </div>
+        </div>
+
+        <div class="stage" style="--stagecolor:#2FD4C4">
+          <div class="stage-rail">
+            <div class="stage-num">4</div>
+            <div class="stage-line"></div>
+          </div>
+          <div class="stage-body">
+            <h4>Encryption (The Payload)</h4>
+            <p>The ransomware encrypts files across local drives and connected network shares using strong cryptography,
+              often also deleting backup shadow copies so recovery isn't trivial.</p>
+            <div class="example">Example: WannaCry's payload — nicknamed "Wana Decrypt0r 2.0" — locked victims' files
+              and changed extensions, rendering documents, images, and databases unusable.</div>
+          </div>
+        </div>
+
+        <div class="stage" style="--stagecolor:#E5484D">
+          <div class="stage-rail">
+            <div class="stage-num">5</div>
+          </div>
+          <div class="stage-body">
+            <h4>Extortion &amp; Ransom Demand</h4>
+            <p>A ransom note appears with payment instructions and a countdown timer, threatening permanent data loss
+              (or, increasingly, public leaks) if payment isn't made in time.</p>
+            <div class="example">Example: WannaCry displayed a red ransom screen demanding $300–$600 in Bitcoin, with a
+              countdown clock threatening to double the price, then destroy the decryption key.</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- CASE STUDY -->
+    <section id="case-study">
+      <div class="kicker">04 · REAL-WORLD CASE STUDY 1 OF 2</div>
+      <div class="case-header">
+        <div class="case-title">WannaCry — May 2017</div>
+        <div class="case-date mono">May 12–15, 2017</div>
+      </div>
+      <p class="body-text">WannaCry remains the clearest lesson in how ransomware escalates from a single unpatched
+        machine into a global crisis. It combined ransomware with worm-like self-propagation, using an exploit
+        originally developed by the U.S. National Security Agency and leaked publicly a month before the attack.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile">
+          <div class="num">150+</div>
+          <div class="lbl">countries hit within days</div>
+        </div>
+        <div class="stat-tile">
+          <div class="num">200,000+</div>
+          <div class="lbl">computers infected in ~24 hours</div>
+        </div>
+        <div class="stat-tile">
+          <div class="num">$4B</div>
+          <div class="lbl">estimated global damage, mostly from business disruption</div>
+        </div>
+        <div class="stat-tile">
+          <div class="num">1</div>
+          <div class="lbl">accidental "kill switch" that briefly halted the spread</div>
         </div>
       </div>
 
-      <div class="stage" style="--stagecolor:#F0A202">
-        <div class="stage-rail"><div class="stage-num">3</div><div class="stage-line"></div></div>
-        <div class="stage-body">
-          <h4>Lateral Movement &amp; Propagation</h4>
-          <p>The malware spreads across the network — self-propagating "worm" ransomware can jump machine to machine with no user interaction at all, while other strains rely on stolen credentials.</p>
-          <div class="example">Example: WannaCry behaved as a self-replicating worm, scanning for other vulnerable machines on the same network and internet-wide, infecting over 200,000 systems in roughly 24 hours.</div>
+      <div class="case-timeline">
+        <div class="t-row">
+          <div class="t-time">MAR 2017</div>
+          <div class="t-desc">Microsoft releases a critical patch (MS17-010) fixing the SMB vulnerability that WannaCry
+            would later exploit.</div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">APR 2017</div>
+          <div class="t-desc">The hacking group "Shadow Brokers" publicly leaks the NSA-developed EternalBlue exploit.
+          </div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">MAY 12</div>
+          <div class="t-desc">WannaCry begins spreading worldwide, encrypting files on unpatched Windows machines and
+            demanding Bitcoin ransoms.</div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">MAY 12</div>
+          <div class="t-desc">Security researcher Marcus Hutchins registers a domain hard-coded into the malware,
+            accidentally triggering a "kill switch" that slows the outbreak.</div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">MAY 13–15</div>
+          <div class="t-desc">New variants without the kill switch appear; infections continue, though at a reduced
+            pace.</div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">LATER</div>
+          <div class="t-desc">The U.S., U.K., and allies publicly attribute the attack to North Korea's Lazarus Group.
+          </div>
         </div>
       </div>
 
-      <div class="stage" style="--stagecolor:#2FD4C4">
-        <div class="stage-rail"><div class="stage-num">4</div><div class="stage-line"></div></div>
-        <div class="stage-body">
-          <h4>Encryption (The Payload)</h4>
-          <p>The ransomware encrypts files across local drives and connected network shares using strong cryptography, often also deleting backup shadow copies so recovery isn't trivial.</p>
-          <div class="example">Example: WannaCry's payload — nicknamed "Wana Decrypt0r 2.0" — locked victims' files and changed extensions, rendering documents, images, and databases unusable.</div>
+      <div class="impact-tags">
+        <span>UK National Health Service (NHS) — ambulances diverted</span>
+        <span>FedEx</span>
+        <span>Nissan &amp; Renault — plants halted</span>
+        <span>Deutsche Bahn &amp; Russian Railways</span>
+        <span>Telefónica</span>
+      </div>
+    </section>
+
+    <!-- CASE STUDY 2: COLONIAL PIPELINE -->
+    <section id="case-study-2">
+      <div class="kicker">05 · REAL-WORLD CASE STUDY 2 OF 2</div>
+      <div class="case-header">
+        <div class="case-title">Colonial Pipeline — May 2021</div>
+        <div class="case-date mono">May 7–12, 2021</div>
+      </div>
+      <p class="body-text">If WannaCry showed ransomware could spread like a worm, Colonial Pipeline showed how a single
+        weak login can cripple critical infrastructure. The DarkSide ransomware group didn't need a flashy exploit —
+        just one unused VPN account with no multi-factor authentication.</p>
+
+      <div class="stat-row">
+        <div class="stat-tile">
+          <div class="num">5,500 mi</div>
+          <div class="lbl">of pipeline taken offline, carrying 2.5M+ barrels of fuel per day</div>
+        </div>
+        <div class="stat-tile">
+          <div class="num">100 GB</div>
+          <div class="lbl">of data stolen by attackers in about two hours before encryption</div>
+        </div>
+        <div class="stat-tile">
+          <div class="num">$4.4M</div>
+          <div class="lbl">ransom paid in Bitcoin to the DarkSide group</div>
+        </div>
+        <div class="stat-tile">
+          <div class="num">5 days</div>
+          <div class="lbl">pipeline was offline before full service resumed</div>
         </div>
       </div>
 
-      <div class="stage" style="--stagecolor:#E5484D">
-        <div class="stage-rail"><div class="stage-num">5</div></div>
-        <div class="stage-body">
-          <h4>Extortion &amp; Ransom Demand</h4>
-          <p>A ransom note appears with payment instructions and a countdown timer, threatening permanent data loss (or, increasingly, public leaks) if payment isn't made in time.</p>
-          <div class="example">Example: WannaCry displayed a red ransom screen demanding $300–$600 in Bitcoin, with a countdown clock threatening to double the price, then destroy the decryption key.</div>
+      <div class="case-timeline">
+        <div class="t-row">
+          <div class="t-time">MAY 6</div>
+          <div class="t-desc">Attackers gain access using a compromised password for an old VPN account that lacked
+            multi-factor authentication — the password had leaked in an unrelated, prior data breach.</div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">MAY 6–7</div>
+          <div class="t-desc">Attackers move laterally through Colonial's IT network and exfiltrate roughly 100 GB of
+            data in about two hours.</div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">MAY 7</div>
+          <div class="t-desc">An employee discovers a ransom note; Colonial proactively takes systems offline, including
+            the pipeline itself, to contain the threat.</div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">MAY 7</div>
+          <div class="t-desc">Colonial pays roughly $4.4 million in Bitcoin to DarkSide for a decryption tool, even as
+            it began its own recovery.</div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">MAY 9–10</div>
+          <div class="t-desc">Panic buying causes fuel shortages across the U.S. Southeast; the FBI publicly confirms
+            DarkSide as the group behind the attack.</div>
+        </div>
+        <div class="t-row">
+          <div class="t-time">MAY 12</div>
+          <div class="t-desc">Pipeline resumes full service. Weeks later, the U.S. Department of Justice recovers a
+            large portion of the ransom payment.</div>
         </div>
       </div>
 
-    </div>
-  </section>
+      <div class="impact-tags">
+        <span>U.S. declared a regional state of emergency</span>
+        <span>East Coast fuel shortages &amp; panic buying</span>
+        <span>No MFA on a single VPN account</span>
+        <span>DOJ recovered part of the ransom</span>
+      </div>
+    </section>
 
-  <!-- CASE STUDY -->
-  <section id="case-study">
-    <div class="kicker">03 · REAL-WORLD CASE STUDY</div>
-    <div class="case-header">
-      <div class="case-title">WannaCry — May 2017</div>
-      <div class="case-date mono">May 12–15, 2017</div>
-    </div>
-    <p class="body-text">WannaCry remains the clearest lesson in how ransomware escalates from a single unpatched machine into a global crisis. It combined ransomware with worm-like self-propagation, using an exploit originally developed by the U.S. National Security Agency and leaked publicly a month before the attack.</p>
+    <!-- NOTABLE ATTACKS STRIP -->
+    <section id="notable">
+      <div class="kicker">06 · OTHER NOTABLE RANSOMWARE ATTACKS</div>
+      <h2 class="display">It Keeps Happening</h2>
+      <p class="body-text">WannaCry and Colonial Pipeline aren't isolated stories — they're part of a pattern that
+        continues today, across every industry.</p>
+      <div class="strip">
+        <div class="strip-card">
+          <div class="yr">MAY 2021 · REvil</div>
+          <h5>JBS Foods</h5>
+          <p>The world's largest meat producer had U.S. and Australian plants shut down. JBS paid an $11 million ransom
+            — down from REvil's initial $22.5 million demand.</p>
+        </div>
+        <div class="strip-card">
+          <div class="yr">FEB 2024 · ALPHV/BlackCat</div>
+          <h5>Change Healthcare</h5>
+          <p>Attackers used one Citrix remote-access account with no MFA to reach a company processing a third of all
+            U.S. patient records. UnitedHealth paid $22 million; data on roughly 100 million people was exposed.</p>
+        </div>
+        <div class="strip-card">
+          <div class="yr">JULY 2021 · REvil</div>
+          <h5>Kaseya Supply-Chain Attack</h5>
+          <p>Attackers compromised Kaseya's IT-management software and pushed ransomware to as many as 1,500 downstream
+            businesses through a single trusted software update.</p>
+        </div>
+      </div>
+    </section>
 
-    <div class="stat-row">
-      <div class="stat-tile"><div class="num">150+</div><div class="lbl">countries hit within days</div></div>
-      <div class="stat-tile"><div class="num">200,000+</div><div class="lbl">computers infected in ~24 hours</div></div>
-      <div class="stat-tile"><div class="num">$4B</div><div class="lbl">estimated global damage, mostly from business disruption</div></div>
-      <div class="stat-tile"><div class="num">1</div><div class="lbl">accidental "kill switch" that briefly halted the spread</div></div>
-    </div>
+    <!-- PREVENTION -->
+    <section id="prevention">
+      <div class="kicker">07 · PREVENTION METHODS</div>
+      <h2 class="display">Breaking the Chain</h2>
+      <p class="body-text">Every stage of the lifecycle above is a place to stop the attack. These are the controls that
+        matter most.</p>
 
-    <div class="case-timeline">
-      <div class="t-row"><div class="t-time">MAR 2017</div><div class="t-desc">Microsoft releases a critical patch (MS17-010) fixing the SMB vulnerability that WannaCry would later exploit.</div></div>
-      <div class="t-row"><div class="t-time">APR 2017</div><div class="t-desc">The hacking group "Shadow Brokers" publicly leaks the NSA-developed EternalBlue exploit.</div></div>
-      <div class="t-row"><div class="t-time">MAY 12</div><div class="t-desc">WannaCry begins spreading worldwide, encrypting files on unpatched Windows machines and demanding Bitcoin ransoms.</div></div>
-      <div class="t-row"><div class="t-time">MAY 12</div><div class="t-desc">Security researcher Marcus Hutchins registers a domain hard-coded into the malware, accidentally triggering a "kill switch" that slows the outbreak.</div></div>
-      <div class="t-row"><div class="t-time">MAY 13–15</div><div class="t-desc">New variants without the kill switch appear; infections continue, though at a reduced pace.</div></div>
-      <div class="t-row"><div class="t-time">LATER</div><div class="t-desc">The U.S., U.K., and allies publicly attribute the attack to North Korea's Lazarus Group.</div></div>
-    </div>
+      <div class="prevent-grid">
+        <div class="prevent-card">
+          <h4><span class="chk">✓</span> Patch promptly</h4>
+          <p>Apply security updates as soon as they're released — WannaCry exploited a vulnerability Microsoft had
+            already fixed two months earlier.</p>
+        </div>
+        <div class="prevent-card">
+          <h4><span class="chk">✓</span> Back up the 3-2-1 way</h4>
+          <p>Keep 3 copies of critical data, on 2 different media, with 1 copy offline or immutable — so encrypted files
+            can be restored without paying.</p>
+        </div>
+        <div class="prevent-card">
+          <h4><span class="chk">✓</span> Train people to spot phishing</h4>
+          <p>Most ransomware still starts with a malicious email attachment or link — regular, realistic training
+            reduces click-through rates.</p>
+        </div>
+        <div class="prevent-card">
+          <h4><span class="chk">✓</span> Segment the network</h4>
+          <p>Limit how far malware can spread laterally by isolating critical systems and restricting unnecessary
+            file-sharing protocols like SMB.</p>
+        </div>
+        <div class="prevent-card">
+          <h4><span class="chk">✓</span> Use endpoint detection &amp; response</h4>
+          <p>Modern EDR/antivirus tools can catch and quarantine ransomware behavior before mass encryption occurs.</p>
+        </div>
+        <div class="prevent-card">
+          <h4><span class="chk">✓</span> Enforce MFA &amp; least privilege</h4>
+          <p>Multi-factor authentication and limited admin rights make it much harder for stolen credentials to turn
+            into a full breach.</p>
+        </div>
+        <div class="prevent-card">
+          <h4><span class="chk">✓</span> Have an incident response plan</h4>
+          <p>Know in advance who to call, how to isolate infected machines, and how to restore from backup — tested
+            before, not during, an incident.</p>
+        </div>
+        <div class="prevent-card">
+          <h4><span class="chk">✓</span> Don't assume paying works</h4>
+          <p>Paying the ransom doesn't guarantee file recovery and funds further attacks — report incidents to
+            authorities like CISA or local law enforcement instead.</p>
+        </div>
+      </div>
+    </section>
 
-    <div class="impact-tags">
-      <span>UK National Health Service (NHS) — ambulances diverted</span>
-      <span>FedEx</span>
-      <span>Nissan &amp; Renault — plants halted</span>
-      <span>Deutsche Bahn &amp; Russian Railways</span>
-      <span>Telefónica</span>
-    </div>
-  </section>
+    <!-- REFERENCES -->
+    <section id="references">
+      <div class="kicker">08 · REFERENCES</div>
+      <h2 class="display">Sources</h2>
+      <div class="refs">
+        <div><span class="n">[1]</span>Cloudflare — "What was the WannaCry ransomware attack?"
+          cloudflare.com/learning/security/ransomware/wannacry-ransomware/</div>
+        <div><span class="n">[2]</span>Kaspersky — "Ransomware WannaCry: All you need to know"
+          usa.kaspersky.com/resource-center/threats/ransomware-wannacry</div>
+        <div><span class="n">[3]</span>Fortinet — "What is a WannaCry Ransomware Attack?"
+          fortinet.com/resources/cyberglossary/wannacry-ransomware-attack</div>
+        <div><span class="n">[4]</span>Akamai — "What Is WannaCry Ransomware"
+          akamai.com/glossary/what-is-wannacry-ransomware</div>
+        <div><span class="n">[5]</span>Data Protection Report — "WannaCry Ransomware Attack Summary"
+          dataprotectionreport.com/2017/05/wannacry-ransomware-attack-summary/</div>
+        <div><span class="n">[6]</span>Wikipedia — "WannaCry ransomware attack"
+          en.wikipedia.org/wiki/WannaCry_ransomware_attack</div>
+        <div><span class="n">[7]</span>CybCube Insights — "Five years of WannaCry: what has changed in ransomware since
+          2017?" insights.cybcube.com/en/five-years-of-wannacry-ransomware</div>
+        <div><span class="n">[8]</span>Trautman, L. &amp; Ormerod, P. — "WannaCry, Ransomware, and the Emerging Threat
+          to Corporations," Villanova Law Digital Commons</div>
+        <div><span class="n">[9]</span>CISA — Stop Ransomware guidance, cisa.gov/stopransomware</div>
+      </div>
+    </section>
 
-  <!-- PREVENTION -->
-  <section id="prevention">
-    <div class="kicker">04 · PREVENTION METHODS</div>
-    <h2 class="display">Breaking the Chain</h2>
-    <p class="body-text">Every stage of the lifecycle above is a place to stop the attack. These are the controls that matter most.</p>
+    <footer>
+      Made for cybersecurity awareness · Share to help someone patch before it's too late.<br>
+      <b>#CyberSecurityAwareness #Ransomware #StaySafeOnline</b>
+    </footer>
 
-    <div class="prevent-grid">
-      <div class="prevent-card"><h4><span class="chk">✓</span> Patch promptly</h4><p>Apply security updates as soon as they're released — WannaCry exploited a vulnerability Microsoft had already fixed two months earlier.</p></div>
-      <div class="prevent-card"><h4><span class="chk">✓</span> Back up the 3-2-1 way</h4><p>Keep 3 copies of critical data, on 2 different media, with 1 copy offline or immutable — so encrypted files can be restored without paying.</p></div>
-      <div class="prevent-card"><h4><span class="chk">✓</span> Train people to spot phishing</h4><p>Most ransomware still starts with a malicious email attachment or link — regular, realistic training reduces click-through rates.</p></div>
-      <div class="prevent-card"><h4><span class="chk">✓</span> Segment the network</h4><p>Limit how far malware can spread laterally by isolating critical systems and restricting unnecessary file-sharing protocols like SMB.</p></div>
-      <div class="prevent-card"><h4><span class="chk">✓</span> Use endpoint detection &amp; response</h4><p>Modern EDR/antivirus tools can catch and quarantine ransomware behavior before mass encryption occurs.</p></div>
-      <div class="prevent-card"><h4><span class="chk">✓</span> Enforce MFA &amp; least privilege</h4><p>Multi-factor authentication and limited admin rights make it much harder for stolen credentials to turn into a full breach.</p></div>
-      <div class="prevent-card"><h4><span class="chk">✓</span> Have an incident response plan</h4><p>Know in advance who to call, how to isolate infected machines, and how to restore from backup — tested before, not during, an incident.</p></div>
-      <div class="prevent-card"><h4><span class="chk">✓</span> Don't assume paying works</h4><p>Paying the ransom doesn't guarantee file recovery and funds further attacks — report incidents to authorities like CISA or local law enforcement instead.</p></div>
-    </div>
-  </section>
-
-  <!-- REFERENCES -->
-  <section id="references">
-    <div class="kicker">05 · REFERENCES</div>
-    <h2 class="display">Sources</h2>
-    <div class="refs">
-      <div><span class="n">[1]</span>Cloudflare — "What was the WannaCry ransomware attack?" cloudflare.com/learning/security/ransomware/wannacry-ransomware/</div>
-      <div><span class="n">[2]</span>Kaspersky — "Ransomware WannaCry: All you need to know" usa.kaspersky.com/resource-center/threats/ransomware-wannacry</div>
-      <div><span class="n">[3]</span>Fortinet — "What is a WannaCry Ransomware Attack?" fortinet.com/resources/cyberglossary/wannacry-ransomware-attack</div>
-      <div><span class="n">[4]</span>Akamai — "What Is WannaCry Ransomware" akamai.com/glossary/what-is-wannacry-ransomware</div>
-      <div><span class="n">[5]</span>Data Protection Report — "WannaCry Ransomware Attack Summary" dataprotectionreport.com/2017/05/wannacry-ransomware-attack-summary/</div>
-      <div><span class="n">[6]</span>Wikipedia — "WannaCry ransomware attack" en.wikipedia.org/wiki/WannaCry_ransomware_attack</div>
-      <div><span class="n">[7]</span>CybCube Insights — "Five years of WannaCry: what has changed in ransomware since 2017?" insights.cybcube.com/en/five-years-of-wannacry-ransomware</div>
-      <div><span class="n">[8]</span>Trautman, L. &amp; Ormerod, P. — "WannaCry, Ransomware, and the Emerging Threat to Corporations," Villanova Law Digital Commons</div>
-      <div><span class="n">[9]</span>CISA — Stop Ransomware guidance, cisa.gov/stopransomware</div>
-    </div>
-  </section>
-
-  <footer>
-    Made for cybersecurity awareness · Share to help someone patch before it's too late.<br>
-    <b>#CyberSecurityAwareness #Ransomware #StaySafeOnline</b>
-  </footer>
-
-</div>
+  </div>
 </body>
+
 </html>
